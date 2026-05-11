@@ -1,6 +1,6 @@
 # qfour-workflows
 
-Shared reusable GitHub Actions workflows for the `falco-ctf-*` repositories.
+Shared reusable GitHub Actions workflows for all Qfour repositories.
 
 ## Workflows
 
