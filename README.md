@@ -1,4 +1,4 @@
-# falco-ctf-ci
+# qfour-workflows
 
 Shared reusable GitHub Actions workflows for the `falco-ctf-*` repositories.
 
@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - { name: scoreboard, context: ., dockerfile: scoreboard/Dockerfile }
-    uses: Qfour/falco-ctf-ci/.github/workflows/image-pipeline.yaml@v1
+    uses: Qfour/qfour-workflows/.github/workflows/image-pipeline.yaml@v1
     with:
       name: ${{ matrix.name }}
       context: ${{ matrix.context }}

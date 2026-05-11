@@ -76,7 +76,7 @@ jobs:
       is-release: ${{ steps.compute.outputs.is-release }}
     steps:
       - uses: actions/checkout@v4
-      - uses: Qfour/falco-ctf-ci/.github/actions/compute-tag@main
+      - uses: Qfour/qfour-workflows/.github/actions/compute-tag@main
         id: compute
 
   # ------------------------------------------------------------------
