@@ -1,0 +1,195 @@
+name: Image pipeline (reusable)
+# Orchestrates build → scan → push for a single image.
+# Caller supplies matrix; this workflow handles one entry.
+# I5 guarantee: sha-tag is computed once in the `tag` job and shared across all steps.
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Image name suffix (e.g. scoreboard → falco-ctf-scoreboard)
+        required: true
+        type: string
+      context:
+        description: Docker build context path (relative to repo root)
+        required: true
+        type: string
+      dockerfile:
+        description: Path to Dockerfile (relative to repo root)
+        required: true
+        type: string
+      push:
+        description: Push image to ECR after successful scan
+        type: boolean
+        default: false
+      registry:
+        description: ECR registry URL (required when push=true)
+        type: string
+        default: ""
+      aws-region:
+        description: AWS region for ECR (required when push=true)
+        type: string
+        default: ""
+      scan-continue-on-error:
+        description: |
+          false (default): policy violations fail the job and block the PR.
+          true: scan runs but failures are non-blocking (SARIF still uploaded).
+        type: boolean
+        default: false
+      severity-at-least:
+        type: string
+        default: high
+      cli-scanner-version:
+        type: string
+        default: "1.26.0"
+      sysdig-secure-url:
+        type: string
+        default: https://app.au1.sysdig.com
+      artifact-retention-days:
+        type: number
+        default: 1
+    secrets:
+      sysdig-token:
+        required: true
+      aws-role-arn:
+        description: IAM role ARN for ECR push (required when push=true)
+        required: false
+    outputs:
+      sha-tag:
+        description: 7-char SHA tag used for the build
+        value: ${{ jobs.tag.outputs.sha-tag }}
+      release-tag:
+        description: Release tag (empty when not a release)
+        value: ${{ jobs.tag.outputs.release-tag }}
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. Compute tag — single source of truth for this pipeline run (I4)
+  # ------------------------------------------------------------------
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha-tag: ${{ steps.compute.outputs.sha-tag }}
+      release-tag: ${{ steps.compute.outputs.release-tag }}
+      is-release: ${{ steps.compute.outputs.is-release }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Qfour/falco-ctf-ci/.github/actions/compute-tag@main
+        id: compute
+
+  # ------------------------------------------------------------------
+  # 2. Build image → upload artifact
+  # ------------------------------------------------------------------
+  build:
+    needs: tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          load: true
+          tags: falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }}
+
+      - name: Save image
+        run: |
+          docker save falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }} \
+            -o ${{ inputs.name }}.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ inputs.name }}
+          path: ${{ inputs.name }}.tar
+          retention-days: ${{ inputs.artifact-retention-days }}
+
+  # ------------------------------------------------------------------
+  # 3. Sysdig scan
+  #    continue-on-error is configurable per caller (default: blocking)
+  # ------------------------------------------------------------------
+  scan:
+    needs: [tag, build]
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ inputs.scan-continue-on-error }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ inputs.name }}
+
+      - name: Load Docker image
+        run: docker load -i ${{ inputs.name }}.tar
+
+      - name: Sysdig CLI Scanner
+        uses: sysdiglabs/scan-action@v6
+        with:
+          image-tag: falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }}
+          sysdig-secure-token: ${{ secrets.sysdig-token }}
+          sysdig-secure-url: ${{ inputs.sysdig-secure-url }}
+          cli-scanner-version: ${{ inputs.cli-scanner-version }}
+          stop-on-failed-policy-eval: true
+          severity-at-least: ${{ inputs.severity-at-least }}
+
+      - name: Upload SARIF report
+        if: always() && hashFiles('sarif.json') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ github.workspace }}/sarif.json
+          category: sysdig-${{ inputs.name }}
+
+  # ------------------------------------------------------------------
+  # 4. Push to ECR
+  #    Skipped when push=false (PRs) or when scan failed and blocking.
+  #    On release: pushes both sha-tag AND release-tag.
+  # ------------------------------------------------------------------
+  push:
+    needs: [tag, build, scan]
+    if: |
+      always() &&
+      inputs.push == true &&
+      needs.build.result == 'success' &&
+      needs.scan.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # OIDC for ECR
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ inputs.name }}
+
+      - name: Load Docker image
+        run: docker load -i ${{ inputs.name }}.tar
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.aws-role-arn }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push SHA tag
+        run: |
+          IMAGE_SHA="${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }}"
+          docker tag "falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }}" "${IMAGE_SHA}"
+          docker push "${IMAGE_SHA}"
+
+      - name: Push release tag
+        if: needs.tag.outputs.is-release == 'true' && needs.tag.outputs.release-tag != ''
+        run: |
+          IMAGE_SHA="${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.sha-tag }}"
+          IMAGE_REL="${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ needs.tag.outputs.release-tag }}"
+          docker tag "${IMAGE_SHA}" "${IMAGE_REL}"
+          docker push "${IMAGE_REL}"

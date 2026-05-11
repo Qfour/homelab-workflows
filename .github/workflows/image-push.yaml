@@ -1,0 +1,73 @@
+name: Image push to ECR (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Image name suffix (e.g. scoreboard)
+        required: true
+        type: string
+      sha-tag:
+        description: 7-char SHA tag (always pushed)
+        required: true
+        type: string
+      release-tag:
+        description: Release tag (e.g. v2026.06.01-ctf). Empty string = skip release tag push
+        type: string
+        default: ""
+      is-release:
+        description: Whether to push the release tag in addition to sha-tag
+        type: boolean
+        default: false
+      registry:
+        description: ECR registry URL (e.g. 123456789.dkr.ecr.ap-northeast-1.amazonaws.com)
+        required: true
+        type: string
+      aws-region:
+        description: AWS region for ECR
+        required: true
+        type: string
+      artifact-name:
+        description: Artifact name containing the image tar
+        required: true
+        type: string
+    secrets:
+      aws-role-arn:
+        description: IAM role ARN for ECR push (OIDC)
+        required: true
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # for OIDC authentication
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+
+      - name: Load Docker image
+        run: docker load -i ${{ inputs.name }}.tar
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.aws-role-arn }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Push SHA tag
+        run: |
+          IMAGE_SHA=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }}
+          docker tag falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }} "${IMAGE_SHA}"
+          docker push "${IMAGE_SHA}"
+
+      - name: Push release tag
+        if: inputs.is-release && inputs.release-tag != ''
+        run: |
+          IMAGE_SHA=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }}
+          IMAGE_REL=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.release-tag }}
+          docker tag "${IMAGE_SHA}" "${IMAGE_REL}"
+          docker push "${IMAGE_REL}"

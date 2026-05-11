@@ -1,0 +1,63 @@
+name: Docker build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Image name suffix (e.g. scoreboard → falco-ctf-scoreboard)
+        required: true
+        type: string
+      context:
+        description: Docker build context path (relative to repo root)
+        required: true
+        type: string
+      dockerfile:
+        description: Path to Dockerfile (relative to repo root)
+        required: true
+        type: string
+      artifact-retention-days:
+        description: Days to retain the image artifact
+        type: number
+        default: 1
+    outputs:
+      sha-tag:
+        description: 7-char SHA tag used for the build
+        value: ${{ jobs.build.outputs.sha-tag }}
+      artifact-name:
+        description: Uploaded artifact name (docker-image-<name>)
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha-tag: ${{ steps.tag.outputs.sha-tag }}
+      artifact-name: docker-image-${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Qfour/falco-ctf-ci/.github/actions/compute-tag@main
+        id: tag
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          load: true
+          tags: falco-ctf-${{ inputs.name }}:${{ steps.tag.outputs.sha-tag }}
+
+      - name: Save image
+        run: |
+          docker save falco-ctf-${{ inputs.name }}:${{ steps.tag.outputs.sha-tag }} \
+            -o ${{ inputs.name }}.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-${{ inputs.name }}
+          path: ${{ inputs.name }}.tar
+          retention-days: ${{ inputs.artifact-retention-days }}

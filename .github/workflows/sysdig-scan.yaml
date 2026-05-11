@@ -1,0 +1,71 @@
+name: Sysdig scan (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: Image name suffix (e.g. scoreboard)
+        required: true
+        type: string
+      sha-tag:
+        description: Image tag to scan (7-char SHA)
+        required: true
+        type: string
+      artifact-name:
+        description: Artifact name containing the image tar
+        required: true
+        type: string
+      severity-at-least:
+        description: Minimum severity to report (critical/high/medium/low)
+        type: string
+        default: high
+      cli-scanner-version:
+        type: string
+        default: "1.26.0"
+      sysdig-secure-url:
+        type: string
+        default: https://app.au1.sysdig.com
+      continue-on-error:
+        description: |
+          When true, scan failures do NOT fail the workflow (SARIF is still uploaded).
+          Default false = policy violations block the PR.
+        type: boolean
+        default: false
+    secrets:
+      sysdig-token:
+        required: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ inputs.continue-on-error }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+
+      - name: Load Docker image
+        run: docker load -i ${{ inputs.name }}.tar
+
+      - name: Sysdig CLI Scanner
+        id: scan
+        uses: sysdiglabs/scan-action@v6
+        with:
+          image-tag: falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }}
+          sysdig-secure-token: ${{ secrets.sysdig-token }}
+          sysdig-secure-url: ${{ inputs.sysdig-secure-url }}
+          cli-scanner-version: ${{ inputs.cli-scanner-version }}
+          stop-on-failed-policy-eval: true
+          severity-at-least: ${{ inputs.severity-at-least }}
+
+      - name: Upload SARIF report
+        if: always() && hashFiles('sarif.json') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ github.workspace }}/sarif.json
+          category: sysdig-${{ inputs.name }}

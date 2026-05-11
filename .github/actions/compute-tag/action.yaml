@@ -1,0 +1,33 @@
+name: Compute image tag
+description: |
+  Derives the Docker image tag from the calling workflow's git ref.
+  On v* tag push: outputs the tag name (e.g. v2026.06.01-ctf).
+  Otherwise: outputs the first 7 chars of the commit SHA.
+  Both sha-tag and release-tag are always emitted to simplify push logic.
+
+outputs:
+  sha-tag:
+    description: 7-char commit SHA tag (always set)
+    value: ${{ steps.compute.outputs.sha-tag }}
+  release-tag:
+    description: Release tag name (set only when is-release=true, else empty)
+    value: ${{ steps.compute.outputs.release-tag }}
+  is-release:
+    description: "'true' when triggered by a v* tag push"
+    value: ${{ steps.compute.outputs.is-release }}
+
+runs:
+  using: composite
+  steps:
+    - id: compute
+      shell: bash
+      run: |
+        SHA_TAG="${GITHUB_SHA::7}"
+        echo "sha-tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+        if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          echo "release-tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          echo "is-release=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "release-tag=" >> "$GITHUB_OUTPUT"
+          echo "is-release=false" >> "$GITHUB_OUTPUT"
+        fi

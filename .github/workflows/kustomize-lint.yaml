@@ -1,0 +1,25 @@
+name: Kustomize lint (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      overlay-glob:
+        description: Glob pattern for overlay directories to build
+        type: string
+        default: deploy/*/overlays/*
+
+jobs:
+  kustomize-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: imranismail/setup-kustomize@v3
+      - name: Build all overlays
+        run: |
+          shopt -s nullglob
+          for d in ${{ inputs.overlay-glob }}; do
+            echo "== $d =="
+            kustomize build "$d" >/dev/null
+          done

@@ -1,0 +1,19 @@
+name: Go test (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        description: Path to test Dockerfile (relative to repo root)
+        type: string
+        default: Dockerfile.test
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Go vet + test
+        run: docker build -f ${{ inputs.dockerfile }} --progress=plain .
