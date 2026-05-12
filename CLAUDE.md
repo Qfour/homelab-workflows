@@ -18,14 +18,15 @@ Actions ワークフロー** を最小単位で集めたもの。Claude Code は
 
 ## 一行要約
 
-1. 最小単位 1 責務、合成は orchestrator (`image-pipeline.yaml`) で。
-2. 第三者 action は **commit SHA で pin**。内部 action は `@v1`。
-3. `${{ inputs.* }}` を `run:` に直書きしない。`env:` 経由 `$VAR`。
-4. 全 input を最初の step で regex 検証。
-5. `permissions: {}` を top-level、各 job で最小権限。
-6. caller を壊さないため input/output rename は `v2` を切るまで禁止。
-7. レビューは `/review` (Opus × 2 並列 + Haiku) を必ず通す。
-8. commit は `/commit` (Haiku)、push は人間が判断。
+1. **GitHub Flow**: `main` 直接コミット禁止。`<type>/<slug>` の short-lived branch を切り、PR で squash merge。
+2. 最小単位 1 責務、合成は orchestrator (`image-pipeline.yaml`) で。
+3. 第三者 action は **commit SHA で pin**。内部 action は `@v1`。
+4. `${{ inputs.* }}` を `run:` に直書きしない。`env:` 経由 `$VAR`。
+5. 全 input を最初の step で regex 検証。
+6. `permissions: {}` を top-level、各 job で最小権限。
+7. caller を壊さないため input/output rename は `v2` を切るまで禁止。
+8. レビューは `/review` (Opus × 2 並列 + Haiku) を必ず通す。
+9. commit は `/commit` (Haiku)、PR は `gh pr create`、merge は squash + branch 削除。
 
 ## ディレクトリ早見
 

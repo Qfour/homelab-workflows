@@ -3,6 +3,96 @@
 qfour-workflows の変更パターンと、それぞれで必須となるゲート・コマンド
 の正典。CLAUDE.md は概要のみ持ち、詳細はこのファイルを参照する。
 
+## Branch 戦略 — GitHub Flow
+
+このリポジトリは **GitHub Flow** を採用する。`main` だけが長期ブランチ
+であり、それ以外は短命な feature/topic branch を切って PR で main に
+マージする。
+
+```mermaid
+flowchart LR
+  M[(main: 常に releasable)] -->|git checkout -b feat/X| B1[feat/X branch]
+  B1 -->|commits| B1
+  B1 -->|gh pr create| PR1[Pull Request]
+  PR1 -->|/review + actionlint CI pass| PR1
+  PR1 -->|squash merge| M
+  M -->|/release-tag v1.x.y| TAG[(vN tag / vN.x.y tag)]
+```
+
+### Hard rules
+
+| # | ルール |
+|---|---|
+| B1 | `main` への **直接コミット禁止**。必ず branch を切る (`git checkout -b <type>/<slug>`) |
+| B2 | `main` への **force-push 禁止**。moving tag (`v1` 等) のみ force 許可 |
+| B3 | branch 名は `<type>/<slug>` 形式 (`type` = `feat`/`fix`/`refactor`/`chore`/`docs`/`ci`、`slug` は kebab-case) |
+| B4 | PR は **squash merge** がデフォルト。複数 commit を 1 commit にまとめてから main に乗せる |
+| B5 | `/review` + CI (`.github/workflows/ci.yaml` の actionlint) が **両方 pass** していないと merge 不可 |
+| B6 | merge 後の feature branch は **削除**。GitHub UI / `gh pr merge --delete-branch` で自動削除 |
+| B7 | 破壊的変更 (input/output rename, default 変更) の PR は **タイトルに `[breaking]`** を入れる |
+
+### 1 PR の粒度
+
+- **最小単位 1 つ** で 1 PR を理想とする。`docker-build.yaml` の変更と
+  `sysdig-scan.yaml` の変更を 1 PR に混ぜない。
+- **例外**: 設計上 atomic な変更 (新規 input 追加 + caller 例の更新 +
+  README) は 1 PR に入れて構わない。
+- **CLAUDE 設定の変更** (`.claude/**`, `scripts/claude-hook-*`) は
+  workflow 変更とは別 PR に切る。
+
+### Claude Code セッションでの実行
+
+新規 PR を始めるとき、main にいる Claude セッションは:
+
+1. **拒否する**: 編集を始める前に "main に直接コミットしようとして
+   いる" 状態なら、branch を切るよう促す。
+2. branch 名を提案: 変更内容から `<type>/<slug>` を推測してユーザー
+   に確認。
+3. ユーザー承認後: `git checkout -b <type>/<slug>` 実行。
+4. 作業 → `/review` → `/commit` → push → `gh pr create`。
+
+`committer` agent は `git branch --show-current` を確認し、`main` に
+いる場合は commit を **拒否してユーザーに branch 作成を促す**。
+
+### コミット → push → PR の典型コマンド
+
+```bash
+# 1. branch を切る
+git checkout main && git pull origin main
+git checkout -b feat/add-helm-lint
+
+# 2. 編集 → /review → /commit (本セッションで)
+
+# 3. push と PR 作成
+git push -u origin feat/add-helm-lint
+gh pr create --title "feat(workflows): add helm-lint" --body "$(cat <<'EOF'
+## Summary
+- ...
+
+## Test plan
+- [ ] /validate
+- [ ] /review
+EOF
+)"
+
+# 4. CI + レビュー pass → squash merge
+gh pr merge --squash --delete-branch
+```
+
+### Branch protection (GitHub UI で設定)
+
+リポジトリ管理者が以下を main に設定する想定:
+
+- ✅ Require pull request before merging
+- ✅ Require status checks: `actionlint` (`.github/workflows/ci.yaml`)
+- ✅ Require linear history (force squash/rebase)
+- ✅ Restrict pushes that create matching branches
+- ✅ Do not allow bypassing the above settings (含 admin)
+
+このリポでは Claude も含めて **誰も main に直 push しない**。
+
+---
+
 ## パターン自動判定
 
 `git diff --name-only main...HEAD` の結果から判定。

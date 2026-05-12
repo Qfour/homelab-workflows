@@ -36,14 +36,22 @@ Create a git commit from the current working tree.
 
 ## Refuse and ask the user if
 
+- **`git branch --show-current` returns `main`** (GitHub Flow: `main`
+  への直接コミット禁止 / `.claude/rules/dev-flow.md` B1). Suggest a
+  branch name from the diff (`<type>/<slug>`, e.g.
+  `feat/add-helm-lint`, `refactor/scan-severity-default`), tell the
+  user to:
+  ```
+  git checkout -b <type>/<slug>
+  ```
+  then re-run `/commit`. Do NOT commit on main even if the user insists
+  — explain why and stop.
 - `.env`, `*.key`, `*.pem`, `*.db`, or `kubeconfig` is staged.
 - The diff includes a third-party action **downgrade** (could mask
   vulnerabilities or be supply-chain malicious).
 - The diff changes an action pin from a SHA back to a moving tag
   (`@v3` etc.).
 - The diff bumps the `Qfour/qfour-workflows/...@v1` ref to `@main`.
-- `git status` shows the branch is not `main` AND the diff includes
-  unrelated changes (user may have forgotten which branch they're on).
 
 ## Output
 
