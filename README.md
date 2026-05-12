@@ -1,4 +1,4 @@
-# qfour-workflows
+# homelab-workflows
 
 Shared reusable GitHub Actions workflows for all Qfour repositories.
 
@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - { name: scoreboard, context: ., dockerfile: scoreboard/Dockerfile }
-    uses: Qfour/qfour-workflows/.github/workflows/image-pipeline.yaml@v1
+    uses: Qfour/homelab-workflows/.github/workflows/image-pipeline.yaml@v1
     with:
       name: ${{ matrix.name }}
       context: ${{ matrix.context }}

@@ -14,7 +14,7 @@
 | I5 | 既存の input / output 名は破壊的変更。`v2` を切るまで rename しない |
 | I6 | `default:` を変更したら README の表と齟齬がないこと |
 | I7 | 第三者 action は **commit SHA で pin**。moving tag (`@v3` 等) 直接禁止 |
-| I8 | 内部 action (`Qfour/qfour-workflows/...`) は `@v1` を使う。`@main` 禁止 |
+| I8 | 内部 action (`Qfour/homelab-workflows/...`) は `@v1` を使う。`@main` 禁止 |
 
 ## Security 規約
 
@@ -95,7 +95,7 @@ Dependabot (`.github/dependabot.yaml`) が weekly で更新 PR を出す。
 
 | 接点 | 詳細 |
 |---|---|
-| `uses:` ref | caller は `Qfour/qfour-workflows/.github/workflows/<name>.yaml@v1` で参照 |
+| `uses:` ref | caller は `Qfour/homelab-workflows/.github/workflows/<name>.yaml@v1` で参照 |
 | Image tag 形式 | `${REGISTRY}/falco-ctf-<name>:<git-sha>` または `:<release-tag>` |
 | caller required secrets | `sysdig-token`, `aws-role-arn` (push=true 時) |
 | OIDC trust | caller の `AWS_ROLE_ARN` の IAM trust policy が GitHub OIDC issuer を許可している前提 |

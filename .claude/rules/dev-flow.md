@@ -1,6 +1,6 @@
 # 開発フロー正典 (dev-flow)
 
-qfour-workflows の変更パターンと、それぞれで必須となるゲート・コマンド
+homelab-workflows の変更パターンと、それぞれで必須となるゲート・コマンド
 の正典。CLAUDE.md は概要のみ持ち、詳細はこのファイルを参照する。
 
 ## Branch 戦略 — GitHub Flow
