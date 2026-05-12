@@ -1,6 +1,6 @@
 # Model routing for Claude Code
 
-qfour-workflows での Claude Code 利用時の、モデルとサブエージェントの
+homelab-workflows での Claude Code 利用時の、モデルとサブエージェントの
 使い分けルール。default は Sonnet で、目的別に Opus / Haiku のサブ
 エージェントへ委譲する。
 
@@ -57,7 +57,7 @@ actionlint-runner (構文) を Haiku で走らせ、結果をマージする。
 
 ### セキュリティ視点だけ深く → `/security-audit`
 
-permissions / OIDC / SHA pin / 入力検証 など qfour-workflows 固有の
+permissions / OIDC / SHA pin / 入力検証 など homelab-workflows 固有の
 threat model に anchored したレビューを Opus で実行。
 
 ## やってはいけないこと

@@ -34,7 +34,7 @@ actionable.
 | I5 | Existing input/output names are **frozen** until `v2`. Renames break callers |
 | I6 | README Workflows table updated when workflow set changes |
 | I7 | Third-party `uses:` is pinned to commit SHA with `# v<semver>` comment |
-| I8 | Internal `Qfour/qfour-workflows/...` reference is `@v1`, not `@main` |
+| I8 | Internal `Qfour/homelab-workflows/...` reference is `@v1`, not `@main` |
 
 ### Non-blocking (recommended)
 

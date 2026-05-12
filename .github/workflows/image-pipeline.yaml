@@ -122,7 +122,7 @@ jobs:
           persist-credentials: false
       - name: Compute tag
         id: compute
-        uses: Qfour/qfour-workflows/.github/actions/compute-tag@v1
+        uses: Qfour/homelab-workflows/.github/actions/compute-tag@v1
 
   # ------------------------------------------------------------------
   # 2. Build image → upload artifact

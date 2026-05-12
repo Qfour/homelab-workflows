@@ -1,10 +1,10 @@
 ---
-description: Delegate to the Opus security-reviewer subagent for a deep security review of the working branch. Anchored to the qfour-workflows threat model (supply chain, secret leakage, untrusted input injection, token retention).
+description: Delegate to the Opus security-reviewer subagent for a deep security review of the working branch. Anchored to the homelab-workflows threat model (supply chain, secret leakage, untrusted input injection, token retention).
 argument-hint: [optional focus area]
 ---
 
 Use the `security-reviewer` subagent (Opus) to audit the changes on
-this branch against the qfour-workflows threat model. The agent loads
+this branch against the homelab-workflows threat model. The agent loads
 the threat model from its own definition and the project conventions
 from CLAUDE.md / .claude/rules/.
 

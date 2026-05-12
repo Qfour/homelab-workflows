@@ -1,4 +1,4 @@
-# qfour-workflows — Claude 開発ガイド
+# homelab-workflows — Claude 開発ガイド
 
 このリポジトリは Qfour 配下の全リポジトリで共有する **再利用可能 GitHub
 Actions ワークフロー** を最小単位で集めたもの。Claude Code はこの

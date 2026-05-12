@@ -51,7 +51,7 @@ Create a git commit from the current working tree.
   vulnerabilities or be supply-chain malicious).
 - The diff changes an action pin from a SHA back to a moving tag
   (`@v3` etc.).
-- The diff bumps the `Qfour/qfour-workflows/...@v1` ref to `@main`.
+- The diff bumps the `Qfour/homelab-workflows/...@v1` ref to `@main`.
 
 ## Output
 
