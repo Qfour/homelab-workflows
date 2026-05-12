@@ -1,0 +1,7 @@
+# Local-only reference material for Claude config patterns.
+# Not committed.
+/sample/
+
+# Editor / OS junk
+.DS_Store
+*.swp

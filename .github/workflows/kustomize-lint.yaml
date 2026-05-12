@@ -8,18 +8,38 @@ on:
         type: string
         default: deploy/*/overlays/*
 
+permissions: {}
+
 jobs:
   kustomize-lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
+    env:
+      OVERLAY_GLOB: ${{ inputs.overlay-glob }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: imranismail/setup-kustomize@v3
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          # Allow letters, digits, dot, slash, dash, underscore, and the glob meta '*'.
+          # Reject shell metacharacters that could break out of the for-loop expansion.
+          if [[ ! "$OVERLAY_GLOB" =~ ^[A-Za-z0-9._/*-]+$ ]]; then
+            echo "::error::overlay-glob contains disallowed characters"
+            exit 1
+          fi
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Setup kustomize
+        uses: imranismail/setup-kustomize@53f941b41dca13ed61874bbc6b4b6e1562877530 # v3.0.0
       - name: Build all overlays
         run: |
+          set -euo pipefail
           shopt -s nullglob
-          for d in ${{ inputs.overlay-glob }}; do
+          # OVERLAY_GLOB has been validated above; safe to expand without quotes.
+          for d in $OVERLAY_GLOB; do
             echo "== $d =="
             kustomize build "$d" >/dev/null
           done

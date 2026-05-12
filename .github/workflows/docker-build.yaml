@@ -27,24 +27,52 @@ on:
         description: Uploaded artifact name (docker-image-<name>)
         value: ${{ jobs.build.outputs.artifact-name }}
 
+permissions: {}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     outputs:
       sha-tag: ${{ steps.tag.outputs.sha-tag }}
       artifact-name: docker-image-${{ inputs.name }}
+    env:
+      NAME: ${{ inputs.name }}
+      CONTEXT: ${{ inputs.context }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [[ ! "$NAME" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::name must match ^[a-z0-9-]+$ (got: $NAME)"
+            exit 1
+          fi
+          if [[ ! "$CONTEXT" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$CONTEXT" =~ \.\. ]]; then
+            echo "::error::context must match ^[A-Za-z0-9._/-]+$ and not contain '..'"
+            exit 1
+          fi
+          if [[ ! "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$DOCKERFILE" =~ \.\. ]]; then
+            echo "::error::dockerfile must match ^[A-Za-z0-9._/-]+$ and not contain '..'"
+            exit 1
+          fi
 
-      - uses: Qfour/qfour-workflows/.github/actions/compute-tag@main
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Compute tag
         id: tag
+        uses: Qfour/qfour-workflows/.github/actions/compute-tag@v1
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
 
       - name: Build image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
@@ -52,12 +80,16 @@ jobs:
           tags: falco-ctf-${{ inputs.name }}:${{ steps.tag.outputs.sha-tag }}
 
       - name: Save image
+        env:
+          SHA_TAG: ${{ steps.tag.outputs.sha-tag }}
         run: |
-          docker save falco-ctf-${{ inputs.name }}:${{ steps.tag.outputs.sha-tag }} \
-            -o ${{ inputs.name }}.tar
+          set -euo pipefail
+          docker save "falco-ctf-${NAME}:${SHA_TAG}" -o "${NAME}.tar"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: docker-image-${{ inputs.name }}
           path: ${{ inputs.name }}.tar
           retention-days: ${{ inputs.artifact-retention-days }}
+          if-no-files-found: error
