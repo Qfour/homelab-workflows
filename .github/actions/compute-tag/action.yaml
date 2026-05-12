@@ -22,10 +22,22 @@ runs:
     - id: compute
       shell: bash
       run: |
+        set -euo pipefail
         SHA_TAG="${GITHUB_SHA::7}"
+        # Validate that GITHUB_SHA is hex (defense in depth — should always be).
+        if [[ ! "$SHA_TAG" =~ ^[a-f0-9]{7}$ ]]; then
+          echo "::error::GITHUB_SHA prefix is not hex: $SHA_TAG"
+          exit 1
+        fi
         echo "sha-tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
         if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-          echo "release-tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          REL_TAG="${GITHUB_REF#refs/tags/}"
+          # Restrict release tag to a safe character set before propagating it.
+          if [[ ! "$REL_TAG" =~ ^v[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::release tag has invalid characters: $REL_TAG"
+            exit 1
+          fi
+          echo "release-tag=${REL_TAG}" >> "$GITHUB_OUTPUT"
           echo "is-release=true" >> "$GITHUB_OUTPUT"
         else
           echo "release-tag=" >> "$GITHUB_OUTPUT"

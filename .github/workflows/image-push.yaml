@@ -36,38 +36,78 @@ on:
         description: IAM role ARN for ECR push (OIDC)
         required: true
 
+permissions: {}
+
 jobs:
   push:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write  # for OIDC authentication
+      id-token: write # OIDC for ECR
+    env:
+      NAME: ${{ inputs.name }}
+      SHA_TAG: ${{ inputs.sha-tag }}
+      RELEASE_TAG: ${{ inputs.release-tag }}
+      REGISTRY: ${{ inputs.registry }}
+      AWS_REGION: ${{ inputs.aws-region }}
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [[ ! "$NAME" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::name must match ^[a-z0-9-]+$"
+            exit 1
+          fi
+          if [[ ! "$SHA_TAG" =~ ^[a-f0-9]{7,40}$ ]]; then
+            echo "::error::sha-tag must be a 7-40 char hex string"
+            exit 1
+          fi
+          if [[ -n "$RELEASE_TAG" ]] && [[ ! "$RELEASE_TAG" =~ ^v[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::release-tag must match ^v[A-Za-z0-9._-]+$ when set"
+            exit 1
+          fi
+          # ECR registry pattern: <id>.dkr.ecr.<region>.amazonaws.com[.cn]
+          if [[ ! "$REGISTRY" =~ ^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$ ]]; then
+            echo "::error::registry does not look like an ECR registry"
+            exit 1
+          fi
+          if [[ ! "$AWS_REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]; then
+            echo "::error::aws-region must look like ap-northeast-1"
+            exit 1
+          fi
+
+      - name: Download image artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: ${{ inputs.artifact-name }}
 
       - name: Load Docker image
-        run: docker load -i ${{ inputs.name }}.tar
+        run: |
+          set -euo pipefail
+          docker load -i "${NAME}.tar"
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           role-to-assume: ${{ secrets.aws-role-arn }}
           aws-region: ${{ inputs.aws-region }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: ecr
+      - name: ECR login
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
 
       - name: Push SHA tag
         run: |
-          IMAGE_SHA=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }}
-          docker tag falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }} "${IMAGE_SHA}"
+          set -euo pipefail
+          IMAGE_SHA="${REGISTRY}/falco-ctf-${NAME}:${SHA_TAG}"
+          docker tag "falco-ctf-${NAME}:${SHA_TAG}" "${IMAGE_SHA}"
           docker push "${IMAGE_SHA}"
 
       - name: Push release tag
         if: inputs.is-release && inputs.release-tag != ''
         run: |
-          IMAGE_SHA=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.sha-tag }}
-          IMAGE_REL=${{ inputs.registry }}/falco-ctf-${{ inputs.name }}:${{ inputs.release-tag }}
+          set -euo pipefail
+          IMAGE_SHA="${REGISTRY}/falco-ctf-${NAME}:${SHA_TAG}"
+          IMAGE_REL="${REGISTRY}/falco-ctf-${NAME}:${RELEASE_TAG}"
           docker tag "${IMAGE_SHA}" "${IMAGE_REL}"
           docker push "${IMAGE_REL}"

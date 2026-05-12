@@ -8,12 +8,31 @@ on:
         type: string
         default: Dockerfile.test
 
+permissions: {}
+
 jobs:
   go-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
+    env:
+      DOCKERFILE: ${{ inputs.dockerfile }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          if [[ ! "$DOCKERFILE" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::dockerfile must match ^[A-Za-z0-9._/-]+$ (got: $DOCKERFILE)"
+            exit 1
+          fi
+          if [[ "$DOCKERFILE" =~ \.\. ]]; then
+            echo "::error::dockerfile must not contain '..'"
+            exit 1
+          fi
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Go vet + test
-        run: docker build -f ${{ inputs.dockerfile }} --progress=plain .
+        run: docker build -f "$DOCKERFILE" --progress=plain .
