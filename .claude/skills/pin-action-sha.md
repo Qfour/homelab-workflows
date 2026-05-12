@@ -20,7 +20,7 @@ GitHub Actions の公式系は annotated が多い。
 ```bash
 OWNER=actions
 REPO=checkout
-TAG=v4.2.2
+TAG=v6.0.2
 
 # 1 段目: ref を取得
 gh api "repos/${OWNER}/${REPO}/git/refs/tags/${TAG}" \
@@ -54,14 +54,14 @@ resolve_sha() {
     echo "$s"
   fi
 }
-resolve_sha actions/checkout v4.2.2
-# → 11bd71901bbe5b1630ceea73d27597364c9af683
+resolve_sha actions/checkout v6.0.2
+# → de0fac2e4500dabe0009e67214ff5f5447ce83dd
 ```
 
 ## 3. workflow に書く
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
   with:
     persist-credentials: false
 ```
