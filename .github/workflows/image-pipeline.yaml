@@ -117,7 +117,7 @@ jobs:
       is-release: ${{ steps.compute.outputs.is-release }}
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
       - name: Compute tag
@@ -138,15 +138,15 @@ jobs:
       SHA_TAG: ${{ needs.tag.outputs.sha-tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
       - name: Setup Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Build image
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
@@ -183,7 +183,7 @@ jobs:
       SHA_TAG: ${{ needs.tag.outputs.sha-tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -209,7 +209,7 @@ jobs:
 
       - name: Upload SARIF report
         if: always() && hashFiles('sarif.json') != ''
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: ${{ github.workspace }}/sarif.json
           category: sysdig-${{ inputs.name }}
@@ -249,7 +249,7 @@ jobs:
           docker load -i "${NAME}.tar"
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
         with:
           role-to-assume: ${{ secrets.aws-role-arn }}
           aws-region: ${{ inputs.aws-region }}
