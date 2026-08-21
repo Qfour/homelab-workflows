@@ -34,6 +34,21 @@ on:
         description: |
           false (default): policy violations fail the job and block the PR.
           true: scan runs but failures are non-blocking (SARIF still uploaded).
+          NOTE: continue-on-error changes the *workflow run* conclusion only —
+          the job's own check-run conclusion still reports failure, so a
+          required branch-protection status check on this job's context is
+          NOT satisfied by this input. Use scan-skip for that case.
+        type: boolean
+        default: false
+      scan-skip:
+        description: |
+          false (default): scan job runs normally.
+          true: scan job is skipped entirely (steps do not run, job reports
+          a "skipped" conclusion). Use this when the caller cannot supply
+          sysdig-token (e.g. GitHub withholds repo secrets from workflow
+          runs triggered by dependabot[bot]) — a skipped required check
+          satisfies branch protection, whereas a failed one (even with
+          continue-on-error) does not.
         type: boolean
         default: false
       severity-at-least:
@@ -172,6 +187,7 @@ jobs:
   # ------------------------------------------------------------------
   scan:
     needs: [tag, build]
+    if: ${{ !inputs.scan-skip }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     continue-on-error: ${{ inputs.scan-continue-on-error }}
@@ -225,7 +241,7 @@ jobs:
       always() &&
       inputs.push == true &&
       needs.build.result == 'success' &&
-      needs.scan.result == 'success'
+      (needs.scan.result == 'success' || needs.scan.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
